@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>냠냠 사천성</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #fff0f6 0%, #fff8e7 100%);
+    font-family: 'Segoe UI', sans-serif;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 16px 8px;
+  }
+  #start-screen {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; min-height: 100vh;
+  }
+  #start-screen h1 { font-size: 34px; font-weight: 900; color: #d63384; margin: 8px 0 6px; }
+  #start-screen p { color: #888; text-align: center; line-height: 1.7; font-size: 15px; }
+  #start-screen .sub { color: #bbb; font-size: 13px; margin: 6px 0 36px; }
+  .btn-start {
+    padding: 15px 48px; border-radius: 50px; border: none;
+    background: linear-gradient(135deg, #ff6eb4, #ff9a3c);
+    color: #fff; font-weight: 900; font-size: 18px; cursor: pointer;
+    box-shadow: 0 6px 24px rgba(255,110,180,0.45);
+  }
+  #game-screen { display: none; flex-direction: column; align-items: center; width: 100%; }
+  #hud {
+    display: flex; gap: 10px; margin-bottom: 14px;
+    align-items: center; flex-wrap: wrap; justify-content: center;
+  }
+  .hud-box {
+    background: #fff; border-radius: 20px; padding: 6px 16px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    font-size: 14px; font-weight: 700; color: #555;
+    display: flex; gap: 6px; align-items: center;
+  }
+  #combo-box {
+    background: linear-gradient(135deg,#ff6eb4,#ff9a3c);
+    border-radius: 20px; padding: 6px 14px;
+    font-size: 13px; font-weight: 900; color: #fff;
+    display: none;
+  }
+  .btn-hint {
+    background: linear-gradient(135deg,#a78bfa,#7c3aed);
+    border: none; border-radius: 20px; padding: 6px 16px;
+    color: #fff; font-weight: 800; cursor: pointer; font-size: 13px;
+  }
+  .btn-hint:disabled { background: #e5e7eb; color: #9ca3af; cursor: default; }
+  .btn-new {
+    background: #fff; border: 2px solid #fcd5e5; border-radius: 20px;
+    color: #d63384; padding: 6px 16px; cursor: pointer; font-size: 13px; font-weight: 700;
+  }
+  #board-wrap {
+    position: relative; background: #fff; border-radius: 20px; padding: 4px;
+    box-shadow: 0 8px 40px rgba(255,110,180,0.15); border: 2px solid #fce7f3;
+  }
+  #board {
+    display: grid;
+    grid-template-columns: repeat(10, 62px);
+    gap: 4px;
+  }
+  .tile {
+    width: 62px; height: 66px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 30px; cursor: pointer; user-select: none;
+    background: #fff; border: 2px solid #fce7f3;
+    box-shadow: 0 2px 6px rgba(255,110,180,0.1);
+    transition: all 0.12s;
+  }
+  .tile.empty { opacity: 0; pointer-events: none; border: none; box-shadow: none; background: transparent; }
+  .tile.selected {
+    background: linear-gradient(135deg,#bfdbfe,#93c5fd);
+    border: 2.5px solid #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.25), 0 3px 8px rgba(0,0,0,0.08);
+    transform: scale(1.08);
+  }
+  .tile.hint {
+    background: linear-gradient(135deg,#e9d5ff,#c084fc);
+    border: 2.5px solid #a855f7;
+    box-shadow: 0 0 0 3px rgba(168,85,247,0.25), 0 3px 8px rgba(0,0,0,0.08);
+  }
+  .tile.flash {
+    background: linear-gradient(135deg,#fde68a,#fbbf24);
+    border: 2.5px solid #f59e0b;
+    transform: scale(1.1);
+  }
+  #path-svg {
+    position: absolute; top: 4px; left: 4px;
+    pointer-events: none; z-index: 10;
+  }
+  .popup {
+    position: absolute; z-index: 20; pointer-events: none;
+    background: linear-gradient(135deg,#ff6eb4,#ff9a3c);
+    color: #fff; font-weight: 900; font-size: 13px;
+    border-radius: 12px; padding: 4px 10px;
+    box-shadow: 0 2px 10px rgba(255,110,180,0.4);
+    white-space: nowrap;
+    animation: popupAnim 0.8s ease forwards;
+  }
+  @keyframes popupAnim {
+    0%   { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-28px); }
+  }
+  #modal {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5);
+    align-items: center; justify-content: center; z-index: 100;
+  }
+  #modal.show { display: flex; }
+  #modal-box {
+    background: #fff; border-radius: 24px; padding: 44px 56px;
+    text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  }
+  #modal-icon { font-size: 64px; }
+  #modal-title { font-size: 26px; font-weight: 900; margin: 10px 0 4px; }
+  #modal-time, #modal-score { color: #888; margin: 4px 0; }
+  #modal-stuck { color: #f87171; font-size: 13px; margin-bottom: 8px; display: none; }
+  .btn-retry {
+    margin-top: 12px; padding: 13px 32px; border-radius: 50px; border: none;
+    background: linear-gradient(135deg,#ff6eb4,#ff9a3c);
+    color: #fff; font-weight: 900; font-size: 16px; cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<!-- 시작 화면 -->
+<div id="start-screen">
+  <div style="font-size:64px;margin-bottom:4px">🍓</div>
+  <h1>냠냠 사천성</h1>
+  <p>같은 음식 타일을 연결해서 제거해요!<br/>최대 2번 꺾는 선으로 연결하면 OK 🎀</p>
+  <p class="sub">💡 힌트 3회 제공</p>
+  <button class="btn-start" onclick="startGame()">🍽️ 게임 시작!</button>
+</div>
+
+<!-- 게임 화면 -->
+<div id="game-screen">
+  <div id="hud">
+    <div class="hud-box">⏱️ <span id="hud-time">00:00</span></div>
+    <div class="hud-box">🍽️ <span id="hud-rem">80</span>개</div>
+    <div class="hud-box">⭐ <span id="hud-score">0</span></div>
+    <div id="combo-box">🔥 <span id="combo-num">0</span>콤보!</div>
+    <button class="btn-hint" id="btn-hint" onclick="useHint()">💡 힌트 (<span id="hint-cnt">3</span>)</button>
+    <button class="btn-new" onclick="startGame()">🔄 새 게임</button>
+  </div>
+  <div id="board-wrap">
+    <svg id="path-svg" width="624" height="528"></svg>
+    <div id="board"></div>
+  </div>
+</div>
+
+<!-- 모달 -->
+<div id="modal">
+  <div id="modal-box">
+    <div id="modal-icon">🎉</div>
+    <div id="modal-title"></div>
+    <div id="modal-time"></div>
+    <div id="modal-score"></div>
+    <div id="modal-stuck"></div>
+    <button class="btn-retry" onclick="startGame()">다시하기 🍽️</button>
+  </div>
+</div>
+
+<script>
+const FOOD_TILES = [
+  "🍎","🍊","🍋","🍇","🍓","🍑","🍒","🥝","🍍","🥭",
+  "🍌","🍉","🫐","🥥","🍏","🍐","🍕","🍔","🌮","🍜",
+  "🍣","🍩","🍪","🎂","🧁","🍦","🍟","🥐","🧇","🥞",
+  "🍿","🍭","🍬","🍫","🥗","🍱","🧆","🥨","🍘","🍡",
+];
+const COLS = 10, ROWS = 8, PAIRS = COLS * ROWS / 2;
+const CW = 62, CH = 66, GAP = 4;
+
+let board, selected, score, combo, remaining, time, running, hints, timerID;
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length-1; i > 0; i--) {
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]] = [a[j],a[i]];
+  }
+  return a;
+}
+
+function makeBoard() {
+  const pool = [];
+  for (let i = 0; i < PAIRS; i++) {
+    const t = FOOD_TILES[i % FOOD_TILES.length];
+    pool.push(t, t);
+  }
+  const sh = shuffle(pool);
+  const b = [];
+  for (let r = 0; r < ROWS; r++)
+    b.push(sh.slice(r*COLS, (r+1)*COLS));
+  return b;
+}
+
+function padBoard(b) {
+  const PR = ROWS+2, PC = COLS+2;
+  const p = Array.from({length:PR}, ()=>Array(PC).fill(null));
+  for (let r=0; r<ROWS; r++)
+    for (let c=0; c<COLS; c++)
+      p[r+1][c+1] = b[r][c];
+  return p;
+}
+
+function isClearH(pb, r, c1, c2) {
+  const [mn,mx] = [Math.min(c1,c2), Math.max(c1,c2)];
+  for (let c=mn+1; c<mx; c++) if (pb[r][c] !== null) return false;
+  return true;
+}
+function isClearV(pb, c, r1, r2) {
+  const [mn,mx] = [Math.min(r1,r2), Math.max(r1,r2)];
+  for (let r=mn+1; r<mx; r++) if (pb[r][c] !== null) return false;
+  return true;
+}
+
+function canConnectPad(pb, pr1,pc1,pr2,pc2) {
+  const PR=pb.length, PC=pb[0].length;
+  if (pr1===pr2 && isClearH(pb,pr1,pc1,pc2)) return [[pr1,pc1],[pr2,pc2]];
+  if (pc1===pc2 && isClearV(pb,pc1,pr1,pr2)) return [[pr1,pc1],[pr2,pc2]];
+  for (const [cr,cc] of [[pr1,pc2],[pr2,pc1]]) {
+    if (pb[cr][cc]===null) {
+      const ok1 = pr1===cr ? isClearH(pb,pr1,pc1,cc) : isClearV(pb,pc1,pr1,cr);
+      const ok2 = cr===pr2 ? isClearH(pb,cr,cc,pc2) : isClearV(pb,cc,cr,pr2);
+      if (ok1&&ok2) return [[pr1,pc1],[cr,cc],[pr2,pc2]];
+    }
+  }
+  for (let c=0; c<PC; c++) {
+    if (c===pc1||c===pc2) continue;
+    if (pb[pr1][c]===null && pb[pr2][c]===null &&
+        isClearH(pb,pr1,pc1,c) && isClearV(pb,c,pr1,pr2) && isClearH(pb,pr2,c,pc2))
+      return [[pr1,pc1],[pr1,c],[pr2,c],[pr2,pc2]];
+  }
+  for (let r=0; r<PR; r++) {
+    if (r===pr1||r===pr2) continue;
+    if (pb[r][pc1]===null && pb[r][pc2]===null &&
+        isClearV(pb,pc1,pr1,r) && isClearH(pb,r,pc1,pc2) && isClearV(pb,pc2,r,pr2))
+      return [[pr1,pc1],[r,pc1],[r,pc2],[pr2,pc2]];
+  }
+  return null;
+}
+
+function canConnect(r1,c1,r2,c2) {
+  const pb = padBoard(board);
+  const res = canConnectPad(pb,r1+1,c1+1,r2+1,c2+1);
+  if (!res) return null;
+  return res.map(([r,c])=>[r-1,c-1]);
+}
+
+function hasAnyMove() {
+  for (let r1=0;r1<ROWS;r1++) for (let c1=0;c1<COLS;c1++) {
+    if (!board[r1][c1]) continue;
+    for (let r2=0;r2<ROWS;r2++) for (let c2=0;c2<COLS;c2++) {
+      if ((r1===r2&&c1===c2)||!board[r2][c2]) continue;
+      if (board[r1][c1]===board[r2][c2] && canConnect(r1,c1,r2,c2)) return true;
+    }
+  }
+  return false;
+}
+
+function getCell(r,c) { return document.getElementById(`c-${r}-${c}`); }
+
+function renderBoard() {
+  const el = document.getElementById('board');
+  el.innerHTML = '';
+  for (let r=0;r<ROWS;r++) for (let c=0;c<COLS;c++) {
+    const div = document.createElement('div');
+    div.className = 'tile' + (board[r][c] ? '' : ' empty');
+    div.id = `c-${r}-${c}`;
+    div.textContent = board[r][c] || '';
+    div.onclick = ()=>handleClick(r,c);
+    el.appendChild(div);
+  }
+}
+
+function updateCell(r,c) {
+  const el = getCell(r,c);
+  if (!el) return;
+  if (!board[r][c]) {
+    el.className='tile empty'; el.textContent='';
+  } else {
+    el.textContent = board[r][c];
+  }
+}
+
+function drawPath(path) {
+  const svg = document.getElementById('path-svg');
+  svg.innerHTML = '';
+  if (!path||path.length<2) return;
+  const pts = path.map(([r,c])=>`${c*(CW+GAP)+CW/2},${r*(CH+GAP)+CH/2}`).join(' ');
+  const poly = document.createElementNS('http://www.w3.org/2000/svg','polyline');
+  poly.setAttribute('points', pts);
+  poly.setAttribute('fill','none');
+  poly.setAttribute('stroke','#ff6eb4');
+  poly.setAttribute('stroke-width','3');
+  poly.setAttribute('stroke-linecap','round');
+  poly.setAttribute('stroke-linejoin','round');
+  poly.setAttribute('stroke-dasharray','6 3');
+  svg.appendChild(poly);
+}
+
+function addPopup(text, r, c) {
+  const wrap = document.getElementById('board-wrap');
+  const div = document.createElement('div');
+  div.className='popup';
+  div.style.left = (c*(CW+GAP)+CW/2-40)+'px';
+  div.style.top  = (r*(CH+GAP)-10)+'px';
+  div.textContent = text;
+  wrap.appendChild(div);
+  setTimeout(()=>div.remove(), 800);
+}
+
+function startGame() {
+  clearInterval(timerID);
+  board=makeBoard(); selected=null; score=0; combo=0;
+  remaining=COLS*ROWS; time=0; running=true; hints=3;
+
+  document.getElementById('start-screen').style.display='none';
+  document.getElementById('game-screen').style.display='flex';
+  document.getElementById('modal').classList.remove('show');
+  document.getElementById('path-svg').innerHTML='';
+
+  updateHUD();
+  renderBoard();
+
+  timerID = setInterval(()=>{
+    if (!running) return;
+    time++;
+    document.getElementById('hud-time').textContent=fmt(time);
+  },1000);
+}
+
+function updateHUD() {
+  document.getElementById('hud-time').textContent=fmt(time);
+  document.getElementById('hud-rem').textContent=remaining;
+  document.getElementById('hud-score').textContent=score;
+  document.getElementById('hint-cnt').textContent=hints;
+  document.getElementById('btn-hint').disabled=(hints<=0);
+  const cb=document.getElementById('combo-box');
+  if (combo>1){ cb.style.display='flex'; document.getElementById('combo-num').textContent=combo; }
+  else cb.style.display='none';
+}
+
+function fmt(s){ return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0'); }
+
+let selPos = null;
+
+function handleClick(r,c) {
+  if (!board||board[r][c]===null||!running) return;
+  // 힌트 초기화
+  clearHintHighlight();
+
+  if (!selPos) {
+    selPos=[r,c];
+    getCell(r,c).classList.add('selected');
+    return;
+  }
+  const [sr,sc]=selPos;
+  if (sr===r&&sc===c) {
+    getCell(r,c).classList.remove('selected');
+    selPos=null; return;
+  }
+  if (board[sr][sc]===board[r][c]) {
+    const path=canConnect(sr,sc,r,c);
+    if (path) {
+      getCell(sr,sc).classList.remove('selected');
+      getCell(sr,sc).classList.add('flash');
+      getCell(r,c).classList.add('flash');
+      drawPath(path);
+      selPos=null;
+      setTimeout(()=>{
+        board[sr][sc]=null; board[r][c]=null;
+        updateCell(sr,sc); updateCell(r,c);
+        drawPath(null);
+        remaining-=2;
+        combo++;
+        score+=10+combo*3;
+        if (combo>1) addPopup(`🔥 ${combo} 콤보!`,r,c);
+        updateHUD();
+        if (remaining===0){ endGame('clear'); }
+        else if (!hasAnyMove()){ endGame('stuck'); }
+      },380);
+      return;
+    }
+  }
+  getCell(sr,sc).classList.remove('selected');
+  combo=0; updateHUD();
+  selPos=[r,c];
+  getCell(r,c).classList.add('selected');
+}
+
+let hintPair=null;
+function clearHintHighlight(){
+  if (hintPair){ hintPair.forEach(([r,c])=>getCell(r,c)?.classList.remove('hint')); hintPair=null; }
+}
+function useHint(){
+  if (hints<=0) return;
+  clearHintHighlight();
+  for (let r1=0;r1<ROWS;r1++) for (let c1=0;c1<COLS;c1++) {
+    if (!board[r1][c1]) continue;
+    for (let r2=0;r2<ROWS;r2++) for (let c2=0;c2<COLS;c2++) {
+      if ((r1===r2&&c1===c2)||!board[r2][c2]) continue;
+      if (board[r1][c1]===board[r2][c2]&&canConnect(r1,c1,r2,c2)) {
+        hintPair=[[r1,c1],[r2,c2]];
+        hintPair.forEach(([r,c])=>getCell(r,c).classList.add('hint'));
+        hints--; updateHUD(); return;
+      }
+    }
+  }
+}
+
+function endGame(type){
+  running=false; clearInterval(timerID);
+  document.getElementById('modal-icon').textContent = type==='clear'?'🎉':'😢';
+  document.getElementById('modal-title').textContent = type==='clear'?'클리어! 냠냠 🍓':'아쉽게도...';
+  document.getElementById('modal-title').style.color = type==='clear'?'#d63384':'#6b7280';
+  document.getElementById('modal-time').textContent='⏱ '+fmt(time);
+  document.getElementById('modal-score').textContent='⭐ '+score+'점';
+  document.getElementById('modal-stuck').style.display = type==='stuck'?'block':'none';
+  document.getElementById('modal').classList.add('show');
+}
+</script>
+</body>
+</html>
